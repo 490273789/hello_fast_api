@@ -1,6 +1,12 @@
-def main():
-    print("Hello from hello-fast-api!")
+from fastapi import FastAPI
+from routers import news
+
+app = FastAPI()
 
 
-if __name__ == "__main__":
-    main()
+@app.get('/book/all')
+async def root():
+    return {"message": "success"}
+
+# 注册路由
+app.include_router(news.router)

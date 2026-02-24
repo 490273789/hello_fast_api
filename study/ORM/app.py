@@ -62,9 +62,11 @@ class BookInfo(BaseModel):
     
 @app.post("/book/add")
 async def add_book(book: BookInfo,db:AsyncSession = Depends(get_database)):
-    book_obj = Book(**book.__dict__)
+    book_obj = Book(**book.model_dump())
     db.add(book_obj)
-    return book
+    await db.flush()    # flush 将数据写入数据库但不提交，可获取自增 id 等字段
+    await db.refresh(book_obj)  # 刷新获取数据库生成的字段（id、create_time等）
+    return book_obj     # commit 由 get_database 依赖自动完成
 
 # class BookInfo(BaseModel):
 #     book_name: str
@@ -73,7 +75,6 @@ async def add_book(book: BookInfo,db:AsyncSession = Depends(get_database)):
     
 @app.put("/book/update/{id}")
 async def update_book(id: int, data: BookInfo,db:AsyncSession = Depends(get_database)):
-    print(f"db: {db}")
     db_book = await db.get(Book, id)
     if db_book is None: 
         raise HTTPException(
@@ -83,6 +84,17 @@ async def update_book(id: int, data: BookInfo,db:AsyncSession = Depends(get_data
     db_book.book_name = data.book_name
     db_book.author = data.author
     db_book.price = data.price
-    print("执行ok")
-    
-    return db_book
+    return db_book  # commit 由 get_database 依赖自动完成
+
+# 删除
+@app.delete("/book/delete_book/{book_id}")
+async def delete_book(book_id: int, db: AsyncSession = Depends(get_database)):
+    # 先查在删
+    db_book = await db.get(Book, book_id)
+    if db_book is None: 
+        raise HTTPException(
+            status_code=404,
+            detail="查无此书"
+        )
+    await db.delete(db_book)
+    return {"message": "删除成功"}  # commit 由 get_database 依赖自动完成
